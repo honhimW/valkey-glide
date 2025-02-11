@@ -28,7 +28,7 @@ public class CallbackTests {
     @Test
     @SneakyThrows
     void connected() {
-        ValkeyClient client = new ValkeyClient("redis://:123456@10.37.1.132:6379");
+        ValkeyClient client = new ValkeyClient("redis://:123456@127.0.0.1:6379");
         RsLogger.init();
         CompletableFuture<String> await = new CompletableFuture<>();
         ThreadCallback.connect(client, (ConnectHandler) () -> {
