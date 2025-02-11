@@ -4,14 +4,14 @@ package glide.ffi.callback;
 
 public final class ThreadCallback {
 
-    public static void connect(RedisClient client, ThreadSafeObserver cb) {
+    public static void connect(ValkeyClient client, ThreadSafeObserver cb) {
         long a0 = client.mNativeObj;
         do_connect(a0, cb);
         java.lang.ref.Reference.reachabilityFence(client);
     }
     private static native void do_connect(long client, ThreadSafeObserver cb);
 
-    public static void submit(String cmd, RedisClient client, ThreadSafeObserver cb) {
+    public static void submit(String cmd, ValkeyClient client, ThreadSafeObserver cb) {
         long a1 = client.mNativeObj;
         do_submit(cmd, a1, cb);
         java.lang.ref.Reference.reachabilityFence(client);

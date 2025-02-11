@@ -1,1 +1,3 @@
 rootProject.name = 'glide'
+
+include 'client'

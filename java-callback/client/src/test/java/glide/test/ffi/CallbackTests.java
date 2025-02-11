@@ -2,12 +2,13 @@
 package glide.test.ffi;
 
 import glide.LoadHelper;
-import glide.ffi.callback.RedisClient;
+import glide.ffi.callback.ValkeyClient;
 import glide.ffi.callback.RsLogger;
 import glide.ffi.callback.ThreadCallback;
 import glide.ffi.callback.ThreadSafeObserver;
 import java.util.concurrent.CompletableFuture;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
  * @author hon_him
  * @since 2025-02-11
  */
+@Slf4j
 public class CallbackTests {
 
     @BeforeAll
@@ -26,11 +28,11 @@ public class CallbackTests {
     @Test
     @SneakyThrows
     void connected() {
-        RedisClient client = new RedisClient("redis://127.0.0.1:6379");
+        ValkeyClient client = new ValkeyClient("redis://:123456@10.37.1.132:6379");
         RsLogger.init();
         CompletableFuture<String> await = new CompletableFuture<>();
         ThreadCallback.connect(client, (ConnectHandler) () -> {
-            System.out.println("connected");
+            log.info("connected");
             await.complete("");
         });
         await.get();
@@ -43,7 +45,7 @@ public class CallbackTests {
 
             @Override
             public void onResponse(String s) {
-                System.out.println(s);
+                log.info("in other thread: {}", s);
                 assert StringUtils.isNotBlank(s);
                 completableFuture.complete(s);
             }
@@ -56,6 +58,6 @@ public class CallbackTests {
         });
 
         String s = completableFuture.get();
-        System.out.println(s);
+        log.info("in main thread: {}", s);
     }
 }

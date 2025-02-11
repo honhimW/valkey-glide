@@ -2,9 +2,9 @@
 package glide.ffi.callback;
 
 
-public final class RedisClient {
+public final class ValkeyClient {
 
-    public RedisClient(String url) {
+    public ValkeyClient(String url) {
         mNativeObj = init(url);
     }
     private static native long init(String url);
@@ -25,7 +25,7 @@ public final class RedisClient {
         }
     }
     private static native void do_delete(long me);
-    /*package*/ RedisClient(InternalPointerMarker marker, long ptr) {
+    /*package*/ ValkeyClient(InternalPointerMarker marker, long ptr) {
         assert marker == InternalPointerMarker.RAW_PTR;
         this.mNativeObj = ptr;
     }
