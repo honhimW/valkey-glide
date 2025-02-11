@@ -1,0 +1,93 @@
+use log::*;
+use tracing::Level;
+use crate::jni_c_header::*;
+use crate::spawn;
+use crate::redis::*;
+use anyhow::Error;
+use std::sync::{Arc, RwLock};
+
+foreign_class!(class RsLogger {
+    fn init() {
+        tracing_subscriber::fmt()
+            .with_max_level(Level::TRACE)
+            .with_thread_names(true)
+            .init();
+        info!("Rust logger initialized");
+    }
+});
+
+#[derive(Clone)]
+struct RedisClient {
+    client: redis::Client,
+    connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+}
+
+foreign_class!(class RedisClient {
+    self_type RedisClient;
+    constructor new_client(url: &str) -> RedisClient {
+        let client = create_client_from_url(url)
+            .expect("Failed to create redis client");
+        RedisClient {
+            client,
+            connection: Arc::new(RwLock::new(None)),
+        }
+    }
+});
+
+trait OnThreadEvent {
+    fn connected(&self);
+
+    fn handle(&self, s: &str);
+
+    fn exceptionally(&self, e: &str);
+}
+
+foreign_callback!(interface ThreadSafeObserver {
+    self_type OnThreadEvent + Send;
+    onConnected = OnThreadEvent::connected(&self);
+    onResponse = OnThreadEvent::handle(&self, s: &str);
+    onError = OnThreadEvent::exceptionally(&self, m: &str);
+});
+
+foreign_class!(class ThreadCallback {
+    fn connect(client: &RedisClient, cb: Box<dyn OnThreadEvent + Send>) {
+        let connection = &client.connection;
+        let client = client.client.clone();
+        let arc = Arc::clone(connection);
+        spawn(async move {
+            use redis::GlideConnectionOptions;
+            if let Ok(connection) = client.get_multiplexed_async_connection(GlideConnectionOptions::default()).await {
+                if let Ok(mut guard) = arc.write() {
+                    *guard = Some(connection);
+                    cb.connected();
+                }
+            }
+        });
+    }
+
+    fn submit(cmd: &str, client: &RedisClient, cb: Box<dyn OnThreadEvent + Send>) {
+        use redis::aio::MultiplexedConnection;
+        match client.connection.read() {
+            Ok(guard) => {
+                match *guard {
+                    None => {
+                        cb.exceptionally("client not connected");
+                    },
+                    Some(ref c) => {
+                        let mut connection = c.clone();
+                        let cmd = cmd.to_string();
+                        spawn(async move {
+                            match do_query(connection, cmd).await {
+                                Ok(s) => cb.handle(s.as_str()),
+                                Err(e) => cb.exceptionally(e.to_string().as_str()),
+                            }
+                        });
+                    }
+                }
+            }
+            Err(_) => {
+                cb.exceptionally("client not connected");
+            }
+        }
+    }
+});

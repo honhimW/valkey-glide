@@ -1,0 +1,61 @@
+/** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
+package glide.test.ffi;
+
+import glide.LoadHelper;
+import glide.ffi.callback.RedisClient;
+import glide.ffi.callback.RsLogger;
+import glide.ffi.callback.ThreadCallback;
+import glide.ffi.callback.ThreadSafeObserver;
+import java.util.concurrent.CompletableFuture;
+import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+/**
+ * @author hon_him
+ * @since 2025-02-11
+ */
+public class CallbackTests {
+
+    @BeforeAll
+    static void before() {
+        LoadHelper.load("glide_rs");
+    }
+
+    @Test
+    @SneakyThrows
+    void connected() {
+        RedisClient client = new RedisClient("redis://127.0.0.1:6379");
+        RsLogger.init();
+        CompletableFuture<String> await = new CompletableFuture<>();
+        ThreadCallback.connect(client, (ConnectHandler) () -> {
+            System.out.println("connected");
+            await.complete("");
+        });
+        await.get();
+        CompletableFuture<String> completableFuture = new CompletableFuture<>();
+        ThreadCallback.submit("get hello", client, new ThreadSafeObserver() {
+            @Override
+            public void onConnected() {
+
+            }
+
+            @Override
+            public void onResponse(String s) {
+                System.out.println(s);
+                assert StringUtils.isNotBlank(s);
+                completableFuture.complete(s);
+            }
+
+            @Override
+            public void onError(String m) {
+                System.err.println(m);
+                completableFuture.completeExceptionally(new RuntimeException(m));
+            }
+        });
+
+        String s = completableFuture.get();
+        System.out.println(s);
+    }
+}
