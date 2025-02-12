@@ -18,7 +18,7 @@ public class LoadHelper {
                 throw new RuntimeException("Unsupported OS: " + System.getProperty("os.name"));
             }
             if (!name.endsWith(platform.suffix)) {
-                name = name + platform.suffix;
+                name = platform.prefix + name + platform.suffix;
             }
             String libName = "/" + name;
             InputStream in = LoadHelper.class.getResourceAsStream(libName);
@@ -42,15 +42,17 @@ public class LoadHelper {
     }
 
     public enum Platform {
-        WINDOWS("windows", ".dll"),
-        MACOS("macos", ".dylib"),
-        LINUX("linux", ".so");
+        WINDOWS("windows", "", ".dll"),
+        MACOS("macos", "", ".dylib"),
+        LINUX("linux", "lib", ".so");
 
         public final String name;
+        public final String prefix;
         public final String suffix;
 
-        Platform(String name, String suffix) {
+        Platform(String name, String prefix, String suffix) {
             this.name = name;
+            this.prefix = prefix;
             this.suffix = suffix;
         }
 
