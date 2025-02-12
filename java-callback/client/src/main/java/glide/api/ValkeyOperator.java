@@ -1,3 +1,4 @@
+/**·Copyright·Valkey·GLIDE·Project·Contributors·-·SPDX·Identifier:·Apache-2.0·*/
 package glide.api;
 
 import glide.ffi.callback.RsLogger;
@@ -5,14 +6,12 @@ import glide.ffi.callback.ThreadCallback;
 import glide.ffi.callback.ThreadSafeObserver;
 import glide.ffi.callback.ValkeyClient;
 import glide.supports.LoadHelper;
-
 import java.util.concurrent.CompletableFuture;
 
 /**
  * @author hon_him
  * @since 2025-02-12
  */
-
 public class ValkeyOperator implements AutoCloseable {
 
     private static volatile boolean LIBRARY_LOADED = false;
@@ -24,6 +23,7 @@ public class ValkeyOperator implements AutoCloseable {
     }
 
     public static ValkeyOperator fromUrl(String url) {
+        tryLoadLibrary();
         ValkeyClient client = new ValkeyClient(url);
         return new ValkeyOperator(client);
     }
@@ -31,8 +31,7 @@ public class ValkeyOperator implements AutoCloseable {
     public CompletableFuture<Void> start() {
         CompletableFuture<String> async = new CompletableFuture<>();
         ThreadCallback.connect(valkeyClient, new DefaultHandler(async));
-        return async.thenAccept(s -> {
-        });
+        return async.thenAccept(s -> {});
     }
 
     public CompletableFuture<String> set(CharSequence key, CharSequence val) {
@@ -87,8 +86,7 @@ public class ValkeyOperator implements AutoCloseable {
     }
 
     public static class FFIException extends RuntimeException {
-        public FFIException() {
-        }
+        public FFIException() {}
 
         public FFIException(String message) {
             super(message);
@@ -102,9 +100,9 @@ public class ValkeyOperator implements AutoCloseable {
             super(cause);
         }
 
-        public FFIException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+        public FFIException(
+                String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
             super(message, cause, enableSuppression, writableStackTrace);
         }
     }
-
 }

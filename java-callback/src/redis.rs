@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use redis::{Client, Cmd, GlideConnectionOptions};
+use redis::{Client, Cmd, GlideConnectionOptions, Value};
 use redis::aio::MultiplexedConnection;
 
 #[macro_export]
@@ -25,8 +25,24 @@ pub async fn query(client: &Client, cmd: impl Into<String>) -> Result<String> {
 }
 
 pub async fn do_query(ref mut con: MultiplexedConnection, cmd: impl Into<String>) -> Result<String> {
-    let value: String = str_cmd!(cmd).query_async(con).await?;
-    Ok(value)
+    let value: Value = str_cmd!(cmd).query_async(con).await?;
+    let s = match value {
+        Value::Nil => "Nil".to_string(),
+        Value::Int(i) => i.to_string(),
+        Value::BulkString(bs) => String::from_utf8(bs)?,
+        Value::Array(arr) => format!("Array[{}]", arr.len()),
+        Value::SimpleString(ss) => ss,
+        Value::Okay => "Okay".to_string(),
+        Value::Map(m) => format!("Map[{}]", m.len()),
+        Value::Attribute { .. } => "Attributes".to_string(),
+        Value::Set(s) => format!("Set[{}]", s.len()),
+        Value::Double(d) => d.to_string(),
+        Value::Boolean(b) => b.to_string(),
+        Value::VerbatimString { text,.. } => text,
+        Value::BigNumber(n) => n.to_string(),
+        Value::Push { .. } => "Push".to_string(),
+    };
+    Ok(s)
 }
 
 
