@@ -4,6 +4,7 @@ package glide.benchmarks;
 import static glide.benchmarks.utils.Benchmarking.testClientSetGet;
 
 import glide.benchmarks.clients.callback.ValkeyAsyncClient;
+import glide.benchmarks.clients.glide.GlideAsyncClient;
 import glide.benchmarks.clients.jedis.JedisClient;
 import glide.benchmarks.clients.lettuce.LettuceAsyncClient;
 import java.util.Arrays;
@@ -55,6 +56,10 @@ public class BenchmarkingApp {
                     testClientSetGet(LettuceAsyncClient::new, runConfiguration, true);
                     break;
                 case GLIDE:
+                    System.out.println("Valkey-GLIDE-Socket async client");
+                    testClientSetGet(GlideAsyncClient::new, runConfiguration, true);
+                    break;
+                case GLIDE_CALLBACK:
                     System.out.println("Valkey-GLIDE-CALLBACK async client");
                     testClientSetGet(ValkeyAsyncClient::new, runConfiguration, true);
                     break;
@@ -227,6 +232,7 @@ public class BenchmarkingApp {
         JEDIS("Jedis"), // sync
         LETTUCE("Lettuce"), // async
         GLIDE("Glide"), // async
+        GLIDE_CALLBACK("GlideCallback"), // async
         ALL("All");
 
         private String name;

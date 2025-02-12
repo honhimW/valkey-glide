@@ -15,6 +15,7 @@ dependencies {
 
 //    implementation "io.valkey:valkey-glide:${version}:${osdetector.classifier}"
     implementation(project(':client'))
+    implementation 'io.valkey:valkey-glide:1.2.1'
 
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation 'com.google.guava:guava:32.1.1-jre'
