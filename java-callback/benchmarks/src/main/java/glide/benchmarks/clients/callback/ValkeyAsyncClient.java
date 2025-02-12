@@ -17,14 +17,12 @@ public class ValkeyAsyncClient implements AsyncClient<String> {
 
     @Override
     public Future<String> asyncSet(String key, String value) {
-        return CompletableFuture.completedFuture(value);
-//        return valkeyOperator.set(key, value);
+        return valkeyOperator.set(key, value);
     }
 
     @Override
     public Future<String> asyncGet(String key) {
-        return CompletableFuture.completedFuture(key);
-//        return valkeyOperator.get(key);
+        return valkeyOperator.get(key);
     }
 
     @Override
