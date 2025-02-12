@@ -22,7 +22,7 @@ public class CallbackTests {
 
     @BeforeAll
     static void before() {
-        LoadHelper.load("glide_rs");
+        LoadHelper.load("glide_rs_cb");
     }
 
     @Test

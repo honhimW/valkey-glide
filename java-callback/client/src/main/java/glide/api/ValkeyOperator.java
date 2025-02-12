@@ -55,7 +55,7 @@ public class ValkeyOperator implements AutoCloseable {
 
     private static synchronized void tryLoadLibrary() {
         if (!LIBRARY_LOADED) {
-            LoadHelper.load("glide_rs");
+            LoadHelper.load("glide_rs_cb");
             LIBRARY_LOADED = true;
             RsLogger.init();
         }
