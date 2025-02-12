@@ -77,10 +77,11 @@ foreign_class!(class ThreadCallback {
                         let mut connection = c.clone();
                         let cmd = cmd.to_string();
                         spawn(async move {
-                            match do_query(connection, cmd).await {
-                                Ok(s) => cb.handle(s.as_str()),
-                                Err(e) => cb.exceptionally(e.to_string().as_str()),
-                            }
+                            cb.handle(cmd.as_str());
+//                            match do_query(connection, cmd).await {
+//                                Ok(s) => cb.handle(s.as_str()),
+//                                Err(e) => cb.exceptionally(e.to_string().as_str()),
+//                            }
                         });
                     }
                 }
