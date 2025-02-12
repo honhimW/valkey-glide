@@ -1,5 +1,5 @@
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
-package glide;
+package glide.supports;
 
 import java.io.File;
 import java.io.FileOutputStream;

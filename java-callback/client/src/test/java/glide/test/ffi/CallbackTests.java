@@ -1,7 +1,7 @@
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 package glide.test.ffi;
 
-import glide.LoadHelper;
+import glide.supports.LoadHelper;
 import glide.ffi.callback.ValkeyClient;
 import glide.ffi.callback.RsLogger;
 import glide.ffi.callback.ThreadCallback;
