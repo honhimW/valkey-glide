@@ -7,7 +7,7 @@ pub use crate::async_callback::*;
 use once_cell::sync::Lazy;
 use std::sync::RwLock;
 use tokio::runtime::Runtime;
-use tokio::task::JoinHandle;
+use tokio::task::{JoinHandle, LocalSet};
 
 pub const MAX_REQUEST_ARGS_LENGTH_IN_BYTES: usize = 2_i32.pow(12) as usize; // TODO: find the right number
 
@@ -29,11 +29,18 @@ static RUNTIME: Lazy<RwLock<Runtime>> = Lazy::new(|| {
     RwLock::new(runtime)
 });
 
+static LOCAL_SET: Lazy<RwLock<LocalSet>> = Lazy::new(|| {
+    let local_set = LocalSet::new();
+    RwLock::new(local_set)
+});
+
 fn spawn<F>(future: F) -> JoinHandle<F::Output>
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    RUNTIME.read().expect("Failed to get tokio runtime")
-        .spawn(future)
+    LOCAL_SET.read().expect("Failed to get tokio local set").spawn(future)
+    // tokio::task::spawn_local()
+    // RUNTIME.read().expect("Failed to get tokio runtime")
+    //     .spawn(future)
 }

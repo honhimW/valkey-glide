@@ -103,7 +103,10 @@ foreign_class!(class ThreadCallback {
                 let cmd = cmd.to_string();
                 match do_query(c, cmd) {
                     Ok(s) => cb.handle(s.as_str()),
-                    Err(e) => cb.exceptionally(e.to_string().as_str()),
+                    Err(e) => {
+                        error!("{}", e);
+                        cb.exceptionally(e.to_string().as_str());
+                    },
                 }
             }
             None => {
