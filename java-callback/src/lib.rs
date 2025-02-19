@@ -39,7 +39,7 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    LOCAL_SET.read().expect("Failed to get tokio local set").spawn(future)
+    LOCAL_SET.read().expect("Failed to get tokio local set").spawn_local(future)
     // tokio::task::spawn_local()
     // RUNTIME.read().expect("Failed to get tokio runtime")
     //     .spawn(future)
