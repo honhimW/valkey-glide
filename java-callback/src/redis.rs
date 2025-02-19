@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use redis::{Client, Cmd, GlideConnectionOptions, Value};
+use redis::{AsyncCommands, Client, Cmd, Connection, GlideConnectionOptions, Value};
 use redis::aio::MultiplexedConnection;
 
 #[macro_export]
@@ -24,8 +24,17 @@ pub async fn query(client: &Client, cmd: impl Into<String>) -> Result<String> {
     Ok(value)
 }
 
-pub async fn do_query(ref mut con: MultiplexedConnection, cmd: impl Into<String>) -> Result<String> {
+pub fn do_query(con: &mut Connection, cmd: impl Into<String>) -> Result<String> {
+    let value: Value = str_cmd!(cmd).query(con)?;
+    value_to_string(value)
+}
+
+pub async fn do_query_async(ref mut con: MultiplexedConnection, cmd: impl Into<String>) -> Result<String> {
     let value: Value = str_cmd!(cmd).query_async(con).await?;
+    value_to_string(value)
+}
+
+fn value_to_string(value: Value) -> Result<String> {
     let s = match value {
         Value::Nil => "Nil".to_string(),
         Value::Int(i) => i.to_string(),
@@ -38,13 +47,12 @@ pub async fn do_query(ref mut con: MultiplexedConnection, cmd: impl Into<String>
         Value::Set(s) => format!("Set[{}]", s.len()),
         Value::Double(d) => d.to_string(),
         Value::Boolean(b) => b.to_string(),
-        Value::VerbatimString { text,.. } => text,
+        Value::VerbatimString { text, .. } => text,
         Value::BigNumber(n) => n.to_string(),
         Value::Push { .. } => "Push".to_string(),
     };
     Ok(s)
 }
-
 
 pub fn split_args(cmd: impl Into<String>) -> Vec<String> {
     let cmd = cmd.into();

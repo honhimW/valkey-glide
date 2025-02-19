@@ -16,10 +16,11 @@ foreign_class!(class RsLogger {
     }
 });
 
-#[derive(Clone)]
+//#[derive(Clone)]
 struct ValkeyClient {
     client: redis::Client,
     connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+    con: Option<redis::Connection>,
 }
 
 foreign_class!(class ValkeyClient {
@@ -30,6 +31,7 @@ foreign_class!(class ValkeyClient {
         ValkeyClient {
             client,
             connection: Arc::new(RwLock::new(None)),
+            con: None,
         }
     }
 });
@@ -50,7 +52,10 @@ foreign_callback!(interface ThreadSafeObserver {
 });
 
 foreign_class!(class ThreadCallback {
-    fn connect(client: &ValkeyClient, cb: Box<dyn OnThreadEvent + Send>) {
+    fn connect(client: &mut ValkeyClient, cb: Box<dyn OnThreadEvent + Send>) {
+        if let Ok(con) = client.client.get_connection(None) {
+            client.con = Some(con);
+        }
         let connection = &client.connection;
         let client = client.client.clone();
         let arc = Arc::clone(connection);
@@ -77,7 +82,7 @@ foreign_class!(class ThreadCallback {
                         let mut connection = c.clone();
                         let cmd = cmd.to_string();
                         spawn(async move {
-                            match do_query(connection, cmd).await {
+                            match do_query_async(connection, cmd).await {
                                 Ok(s) => cb.handle(s.as_str()),
                                 Err(e) => cb.exceptionally(e.to_string().as_str()),
                             }
@@ -86,6 +91,22 @@ foreign_class!(class ThreadCallback {
                 }
             }
             Err(_) => {
+                cb.exceptionally("client not connected");
+            }
+        }
+    }
+
+    fn perform(cmd: &str, client: &mut ValkeyClient, cb: Box<dyn OnThreadEvent + Send>) {
+        use redis::Connection;
+        match client.con {
+            Some(ref mut c) => {
+                let cmd = cmd.to_string();
+                match do_query(c, cmd) {
+                    Ok(s) => cb.handle(s.as_str()),
+                    Err(e) => cb.exceptionally(e.to_string().as_str()),
+                }
+            }
+            None => {
                 cb.exceptionally("client not connected");
             }
         }

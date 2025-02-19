@@ -37,14 +37,14 @@ public class ValkeyOperator implements AutoCloseable {
     public CompletableFuture<String> set(CharSequence key, CharSequence val) {
         String cmd = String.format("SET %s %s", key, val);
         CompletableFuture<String> async = new CompletableFuture<>();
-        ThreadCallback.submit(cmd, valkeyClient, new DefaultHandler(async));
+        ThreadCallback.perform(cmd, valkeyClient, new DefaultHandler(async));
         return async;
     }
 
     public CompletableFuture<String> get(CharSequence key) {
         String cmd = String.format("GET %s", key);
         CompletableFuture<String> async = new CompletableFuture<>();
-        ThreadCallback.submit(cmd, valkeyClient, new DefaultHandler(async));
+        ThreadCallback.perform(cmd, valkeyClient, new DefaultHandler(async));
         return async;
     }
 

@@ -45,10 +45,11 @@ mod test {
         Ok(())
     }
 
-    #[derive(Clone)]
+    // #[derive(Clone)]
     struct RedisClient {
         client: redis::Client,
         connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+        con: Option<redis::Connection>,
     }
 
     impl RedisClient {
@@ -59,6 +60,7 @@ mod test {
             RedisClient {
                 client,
                 connection: Arc::new(RwLock::new(None)),
+                con: None,
             }
         }
 
