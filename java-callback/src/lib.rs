@@ -29,19 +29,21 @@ static RUNTIME: Lazy<RwLock<Runtime>> = Lazy::new(|| {
     RwLock::new(runtime)
 });
 
-static LOCAL_SET: Lazy<RwLock<LocalSet>> = Lazy::new(|| {
-    let local_set = LocalSet::new();
-    RwLock::new(local_set)
-});
-
 fn spawn<F>(future: F) -> JoinHandle<F::Output>
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    let local_set = LocalSet::new();
-    local_set.spawn_local(future)
-    // tokio::task::spawn_local()
-    // RUNTIME.read().expect("Failed to get tokio runtime")
-    //     .spawn(future)
+    RUNTIME.read().expect("Failed to get tokio runtime")
+        .spawn(future)
+}
+
+fn spawn_local<F>(future: F) -> JoinHandle<F::Output>
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    tokio::task::spawn_local(future)
+    // let local_set = LocalSet::new();
+    // local_set.spawn_local(future)
 }

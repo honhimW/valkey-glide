@@ -1,7 +1,7 @@
 use log::*;
 use tracing::Level;
 use crate::jni_c_header::*;
-use crate::spawn;
+use crate::{spawn, spawn_local};
 use crate::redis::*;
 use anyhow::Error;
 use std::sync::{Arc, RwLock};
@@ -81,7 +81,7 @@ foreign_class!(class ThreadCallback {
                     Some(ref c) => {
                         let mut connection = c.clone();
                         let cmd = cmd.to_string();
-                        spawn(async move {
+                        spawn_local(async move {
                             match do_query_async(connection, cmd).await {
                                 Ok(s) => cb.handle(s.as_str()),
                                 Err(e) => cb.exceptionally(e.to_string().as_str()),
