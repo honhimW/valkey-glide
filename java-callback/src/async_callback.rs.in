@@ -68,19 +68,28 @@ foreign_class!(class ThreadCallback {
         }
         spawn(async move {
             use redis::GlideConnectionOptions;
-            if let Ok(connection) = client.get_multiplexed_async_connection(GlideConnectionOptions::default()).await {
+            if let Ok(mut connection) = client.get_multiplexed_async_connection(GlideConnectionOptions::default()).await {
                 if let Ok(mut guard) = arc.write() {
-                    *guard = Some(connection);
+                    *guard = Some(connection.clone());
                     cb.connected();
                 }
-            }
-            loop {
-                match rx.recv() {
-                    Ok((cb, cmd)) => {
-                        cb.handle(&cmd);
-                    }
-                    Err(e) => {
-                        cb.exceptionally(e.to_string().as_str());
+
+                loop {
+                    match rx.recv() {
+                        Ok((cb, cmd)) => {
+                            let result = do_query_async(&mut connection, cmd).await;
+                            match result {
+                                Ok(s) => {
+                                    cb.handle(s.as_str());
+                                }
+                                Err(e) => {
+                                    cb.exceptionally(e.to_string().as_str());
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            cb.exceptionally(e.to_string().as_str());
+                        }
                     }
                 }
             }

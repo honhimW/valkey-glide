@@ -29,7 +29,7 @@ pub fn do_query(con: &mut Connection, cmd: impl Into<String>) -> Result<String> 
     value_to_string(value)
 }
 
-pub async fn do_query_async(ref mut con: MultiplexedConnection, cmd: impl Into<String>) -> Result<String> {
+pub async fn do_query_async(con: &mut MultiplexedConnection, cmd: impl Into<String>) -> Result<String> {
     let value: Value = str_cmd!(cmd).query_async(con).await?;
     value_to_string(value)
 }

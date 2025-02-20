@@ -92,6 +92,7 @@ mod test {
                     }
                 }
 
+                // let local_set_pool = LocalPoolHandle::new(num_cpus::get());
                 loop {
                     match self.rx.recv() {
                         Ok((cb, cmd)) => {
