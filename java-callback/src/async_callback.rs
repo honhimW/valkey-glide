@@ -18,11 +18,12 @@ include!(concat!(env!("OUT_DIR"), "/async_callback.rs"));
 mod test {
     use std::time::Duration;
     use anyhow::{Error, Result};
-    use log::info;
+    use log::{error, info};
     use redis::{AsyncCommands, Client, Cmd, RedisResult};
     use crate::redis::query;
     use std::sync::{Arc, LockResult, Mutex, RwLock};
     use std::thread::sleep;
+    use crossbeam_channel::{Receiver, SendError, Sender};
     use redis::aio::MultiplexedConnection;
     use redis::GlideConnectionOptions;
     use tokio::join;
@@ -45,42 +46,107 @@ mod test {
         Ok(())
     }
 
-    // #[derive(Clone)]
-    struct RedisClient {
-        client: redis::Client,
-        connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
-        con: Option<redis::Connection>,
+    trait OnThreadEvent {
+        fn connected(&self);
+
+        fn handle(&self, s: &str);
+
+        fn exceptionally(&self, e: &str);
     }
 
-    impl RedisClient {
+    // #[derive(Clone)]
+    struct ValkeyClient {
+        client: redis::Client,
+        connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+        tx: Sender<(Box<dyn OnThreadEvent + Send>, String)>,
+        rx: Receiver<(Box<dyn OnThreadEvent + Send>, String)>,
+    }
 
-        fn new_client(url: &str) -> RedisClient {
+    impl ValkeyClient {
+
+        fn new_client(url: &str) -> ValkeyClient {
             let client = create_client_from_url(url)
                 .expect("Failed to create redis client");
-            RedisClient {
+            let (tx, rx) = crossbeam_channel::unbounded();
+            ValkeyClient {
                 client,
                 connection: Arc::new(RwLock::new(None)),
-                con: None,
+                tx, rx,
             }
         }
 
-        fn connect(&mut self) {
+        fn connect(&mut self, cb: Box<dyn OnThreadEvent + Send>) {
             let client = self.client.clone();
             let arc = Arc::clone(&self.connection);
+            if let Ok(guard) = arc.read() {
+                if guard.is_some() {
+                    cb.exceptionally("client already connected");
+                    return;
+                }
+            }
             spawn(async move {
                 if let Ok(connection) = client.get_multiplexed_async_connection(GlideConnectionOptions::default()).await {
                     if let Ok(mut guard) = arc.write() {
                         *guard = Some(connection);
+                        cb.connected();
+                    }
+                }
+
+                loop {
+                    match self.rx.recv() {
+                        Ok((cb, cmd)) => {
+                            cb.handle(&cmd);
+                        }
+                        Err(e) => {
+                            cb.exceptionally(e.to_string().as_str());
+                        }
                     }
                 }
             });
+        }
+
+        fn submit(cmd: &str, client: &ValkeyClient, cb: Box<dyn OnThreadEvent + Send>) {
+            use redis::aio::MultiplexedConnection;
+            match client.connection.read() {
+                Ok(guard) => {
+                    match *guard {
+                        None => {
+                            cb.exceptionally("client not connected");
+                        },
+                        Some(ref c) => {
+                            let cmd = cmd.to_string();
+                            match client.tx.send((cb, cmd)) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error!("{}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    cb.exceptionally("client not connected");
+                }
+            }
         }
     }
 
     #[test]
     fn connect_async() -> Result<()> {
-        let mut client = RedisClient::new_client("redis://:123456@10.37.1.132:6379");
-        client.connect();
+        let mut client = ValkeyClient::new_client("redis://:123456@10.37.1.132:6379");
+
+        struct Cb {}
+        impl OnThreadEvent for Cb {
+            fn connected(&self) {
+            }
+
+            fn handle(&self, s: &str) {
+            }
+
+            fn exceptionally(&self, e: &str) {
+            }
+        }
+        client.connect(Box::new(Cb {}));
 
         sleep(Duration::from_secs(1));
         match client.connection.read() {

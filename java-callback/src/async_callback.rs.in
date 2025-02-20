@@ -1,10 +1,11 @@
 use log::*;
 use tracing::Level;
 use crate::jni_c_header::*;
-use crate::{spawn, spawn_local};
+use crate::spawn;
 use crate::redis::*;
 use anyhow::Error;
 use std::sync::{Arc, RwLock};
+use crossbeam_channel::{Receiver, SendError, Sender};
 
 foreign_class!(class RsLogger {
     fn init() {
@@ -20,7 +21,8 @@ foreign_class!(class RsLogger {
 struct ValkeyClient {
     client: redis::Client,
     connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
-    con: Option<redis::Connection>,
+    tx: Sender<(Box<dyn OnThreadEvent + Send>, String)>,
+    rx: Receiver<(Box<dyn OnThreadEvent + Send>, String)>,
 }
 
 foreign_class!(class ValkeyClient {
@@ -28,10 +30,11 @@ foreign_class!(class ValkeyClient {
     constructor new_client(url: &str) -> ValkeyClient {
         let client = create_client_from_url(url)
             .expect("Failed to create redis client");
+        let (tx, rx) = crossbeam_channel::unbounded();
         ValkeyClient {
             client,
             connection: Arc::new(RwLock::new(None)),
-            con: None,
+            tx, rx,
         }
     }
 });
@@ -53,18 +56,32 @@ foreign_callback!(interface ThreadSafeObserver {
 
 foreign_class!(class ThreadCallback {
     fn connect(client: &mut ValkeyClient, cb: Box<dyn OnThreadEvent + Send>) {
-        if let Ok(con) = client.client.get_connection(None) {
-            client.con = Some(con);
-        }
         let connection = &client.connection;
+        let rx = client.rx.clone();
         let client = client.client.clone();
         let arc = Arc::clone(connection);
+        if let Ok(guard) = arc.read() {
+            if guard.is_some() {
+                cb.exceptionally("client already connected");
+                return;
+            }
+        }
         spawn(async move {
             use redis::GlideConnectionOptions;
             if let Ok(connection) = client.get_multiplexed_async_connection(GlideConnectionOptions::default()).await {
                 if let Ok(mut guard) = arc.write() {
                     *guard = Some(connection);
                     cb.connected();
+                }
+            }
+            loop {
+                match rx.recv() {
+                    Ok((cb, cmd)) => {
+                        cb.handle(&cmd);
+                    }
+                    Err(e) => {
+                        cb.exceptionally(e.to_string().as_str());
+                    }
                 }
             }
         });
@@ -79,14 +96,13 @@ foreign_class!(class ThreadCallback {
                         cb.exceptionally("client not connected");
                     },
                     Some(ref c) => {
-                        let mut connection = c.clone();
                         let cmd = cmd.to_string();
-                        spawn_local(async move {
-                            match do_query_async(connection, cmd).await {
-                                Ok(s) => cb.handle(s.as_str()),
-                                Err(e) => cb.exceptionally(e.to_string().as_str()),
+                        match client.tx.send((cb, cmd)) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error!("{}", e);
                             }
-                        });
+                        }
                     }
                 }
             }
@@ -96,22 +112,4 @@ foreign_class!(class ThreadCallback {
         }
     }
 
-    fn perform(cmd: &str, client: &mut ValkeyClient, cb: Box<dyn OnThreadEvent + Send>) {
-        use redis::Connection;
-        match client.con {
-            Some(ref mut c) => {
-                let cmd = cmd.to_string();
-                match do_query(c, cmd) {
-                    Ok(s) => cb.handle(s.as_str()),
-                    Err(e) => {
-                        error!("{}", e);
-                        cb.exceptionally(e.to_string().as_str());
-                    },
-                }
-            }
-            None => {
-                cb.exceptionally("client not connected");
-            }
-        }
-    }
 });

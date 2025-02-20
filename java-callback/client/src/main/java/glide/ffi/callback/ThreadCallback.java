@@ -18,12 +18,5 @@ public final class ThreadCallback {
     }
     private static native void do_submit(String cmd, long client, ThreadSafeObserver cb);
 
-    public static void perform(String cmd, ValkeyClient client, ThreadSafeObserver cb) {
-        long a1 = client.mNativeObj;
-        do_perform(cmd, a1, cb);
-        java.lang.ref.Reference.reachabilityFence(client);
-    }
-    private static native void do_perform(String cmd, long client, ThreadSafeObserver cb);
-
     private ThreadCallback() {}
 }
